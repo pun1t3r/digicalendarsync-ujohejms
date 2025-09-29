@@ -1,41 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Digicampus to Google Calendar Sync</title>
-    <link rel="stylesheet" href="src/style.css" />
+    <link rel="stylesheet" href="/src/style.css" />
 
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-    <script src="src/script.js" defer></script>
-  </head>
-  <body>
+    
+    <script src="/src/script.js" defer></script>
+</head>
+<body>
     <div class="container">
-      <h1>Digicampus Calendar Sync Tool 🗓️</h1>
+        <h1>Digicampus Calendar Sync Tool 🗓️</h1>
+        
+        <div class="auth-section">
+            <p id="auth_message">Initializing...</p>
+            <button id="authorize_button" style="display: none;">Sign in with Google</button>
+            <button id="signout_button" style="display: none;">Sign Out</button>
+        </div>
 
-      <div class="auth-section">
-        <p id="auth_message">Initializing...</p>
-        <button id="authorize_button" style="display: none">
-          Sign in with Google
-        </button>
-        <button id="signout_button" style="display: none">Sign Out</button>
-      </div>
+        <div id="sync_section" class="hidden">
+            <p>Paste the calendar JSON data from Digicampus DevTools below:</p>
+            <textarea id="json_input" placeholder="[ { &quot;id&quot;: 1234, &quot;start&quot;: &quot;...&quot; }, ... ]"></textarea>
+            <button id="sync_button">✨ Sync to Calendar</button>
+        </div>
 
-      <div id="sync_section" class="hidden">
-        <p>Paste the calendar JSON data from Digicampus DevTools below:</p>
-        <textarea
-          id="json_input"
-          placeholder='[ { "id": 1234, "start": "..." }, ... ]'
-        ></textarea>
-        <button id="sync_button">✨ Sync to Calendar</button>
-      </div>
-
-      <div class="log-section">
-        <h3>Sync Log:</h3>
-        <pre id="log_output"></pre>
-      </div>
+        <div class="log-section">
+            <h3>Sync Log:</h3>
+            <pre id="log_output"></pre>
+        </div>
     </div>
-  </body>
+</body>
 </html>
