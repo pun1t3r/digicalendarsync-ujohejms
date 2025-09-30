@@ -65,6 +65,15 @@ authorizeButton.onclick = () => {
     }
 };
 
+// ** ADDED THE MISSING EVENT HANDLERS FOR THE OTHER BUTTONS **
+signoutButton.onclick = signOut;
+
+syncButton.onclick = () => {
+    console.log('Sync button was clicked!'); // Debugging line
+    handleSync();
+};
+
+
 // Start the application after the main page and external scripts are loaded
 window.onload = async () => {
     // Dynamically load the Google scripts
@@ -142,16 +151,23 @@ async function handleSync() {
             logMessage(`✅ Loaded ${digiEvents.length} events from input.`);
         } catch (err) {
             logMessage(`❌ Error: Invalid JSON. Please check your data. Details: ${err.message}`);
-            return;
+            return; // Exit here if JSON is invalid
+        } finally {
+            // Re-enable the button if JSON parsing fails
+            if (!digiEvents) {
+                 syncButton.disabled = false;
+                 syncButton.classList.remove('loading');
+                 syncButton.innerHTML = '✨ Sync to Calendar';
+            }
         }
         logMessage('Fetching existing events from Google Calendar...');
         const response = await gapi.client.calendar.events.list({
             calendarId: 'primary',
-            privateExtendedProperty: 'source=digicampus-frontend',
+            privateExtendedProperty: 'source=digi-sync',
             maxResults: 2500,
         });
         const googleEvents = response.result.items;
-        const googleEventsMap = new Map(googleEvents.map(e => [e.extendedProperties.private.digicampus_id, e]));
+        const googleEventsMap = new Map(googleEvents.map(e => [e.extendedProperties.private.digi_id, e]));
         logMessage(`Found ${googleEventsMap.size} existing Digicampus events in your calendar.`);
         const currentDigiIds = new Set();
         for (const event of digiEvents) {
@@ -172,8 +188,8 @@ async function handleSync() {
                 end: { dateTime: new Date(event.end).toISOString() },
                 extendedProperties: {
                     private: {
-                        source: 'digicampus-frontend',
-                        digicampus_id: digiId,
+                        source: 'digi-sync',
+                        digi_id: digiId,
                         lastModified: event.lastModified,
                     },
                 },
