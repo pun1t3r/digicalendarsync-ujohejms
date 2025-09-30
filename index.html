@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Digicampus to Google Calendar Sync</title>
     <link rel="stylesheet" href="/src/style.css" />
-    </head>
+</head>
 <body>
     <div class="container">
-        <h1>Digicampus Calendar Sync Tool 🗓️</h1>
+        <h1>Digicampus Calendar Sync Tool </h1>
         
         <div class="auth-section">
             <p id="auth_message">Initializing...</p>
@@ -19,13 +20,26 @@
         <div id="sync_section" class="hidden">
             <p>Paste the calendar JSON data from Digicampus DevTools below:</p>
             <textarea id="json_input" placeholder="[ { &quot;id&quot;: 1234, &quot;start&quot;: &quot;...&quot; }, ... ]"></textarea>
-            <button id="sync_button">✨ Sync to Calendar</button>
+            <button id="sync_button"> Sync to Calendar</button>
         </div>
 
         <div class="log-section">
             <h3>Sync Log:</h3>
             <pre id="log_output"></pre>
         </div>
+
+        <footer>
+          <p>Developed by Parth Raina</p>
+          <div class="social-links">
+            <a href="YOUR_LINKEDIN_URL" target="https://www.linkedin.com/in/parth-raina/" rel="noopener noreferrer" title="LinkedIn">
+              <i class="fab fa-linkedin"></i>
+            </a>
+            <a href="YOUR_INSTAGRAM_URL" target="https://www.instagram.com/parthrainaa_/" rel="noopener noreferrer" title="Instagram">
+              <i class="fab fa-instagram"></i>
+            </a>
+          </div>
+        </footer>
+
     </div>
 
     <script type="module" src="/src/script.js"></script>
