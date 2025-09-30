@@ -62,6 +62,8 @@ async function main() {
                 // ** THIS SECTION IS NOW FIXED **
                 // 1. Exchange the code for a token object.
                 const tokenResponse = await gapi.client.getToken({ code: code });
+                // ADD THIS LINE FOR DEBUGGING
+                console.log('Token Response from Google:', tokenResponse);
                 // 2. Set the token for the GAPI client to use. THIS LINE WAS MISSING.
                 gapi.client.setToken(tokenResponse);
                 // 3. Now proceed to the next step.
