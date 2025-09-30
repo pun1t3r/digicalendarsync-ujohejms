@@ -1,8 +1,6 @@
 // --- CONFIGURATION ---
-const CLIENT_ID =
-  '737883056091-ff3rblo4uhc0n7k7mvd9u47einnknmp9.apps.googleusercontent.com';
+const CLIENT_ID = '737883056091-ff3rblo4uhc0n7k7mvd9u47einnknmp9.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyAapEDaEj1QWFB_vpC-U8m0mQ4wVUwP31c';
-// NEW: Specify the email domain that is allowed to use this tool.
 const ALLOWED_DOMAIN = 'greatlakes.edu.in';
 // --- END CONFIGURATION ---
 
@@ -17,67 +15,31 @@ const syncButton = document.getElementById('sync_button');
 const jsonInput = document.getElementById('json_input');
 const logOutput = document.getElementById('log_output');
 
-/**
- * A helper function to dynamically load a script and return a promise.
- * @param {string} src The URL of the script to load.
- * @returns {Promise<void>}
- */
-function loadScript(src) {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.defer = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-        document.head.appendChild(script);
-    });
-}
+let tokenClient;
 
 /**
  * Main function to initialize and run the application.
  */
-async function main() {
+async function initializeApp() {
+    logMessage('Loading and initializing Google clients...');
     try {
-        logMessage('Loading Google API scripts...');
-        await Promise.all([
-            loadScript('https://apis.google.com/js/api.js'),
-            loadScript('https://accounts.google.com/gsi/client')
-        ]);
-        logMessage('Scripts loaded. Initializing Google API client...');
-
-        await new Promise((resolve) => gapi.load('client', resolve));
-        
+        // Load the libraries
+        await new Promise(resolve => gapi.load('client', resolve));
         await gapi.client.init({
             apiKey: API_KEY,
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
         });
-        logMessage('Google API client initialized.');
-        
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get('code');
 
-        if (code) {
-            try {
-                // ** THIS SECTION IS NOW FIXED **
-                // 1. Exchange the code for a token object.
-                const tokenResponse = await gapi.client.getToken({ code: code });
-                // ADD THIS LINE FOR DEBUGGING
-                console.log('Token Response from Google:', tokenResponse);
-                // 2. Set the token for the GAPI client to use. THIS LINE WAS MISSING.
-                gapi.client.setToken(tokenResponse);
-                // 3. Now proceed to the next step.
-                handleSuccessfulLogin();
-            } catch (error) {
-                console.error('Error exchanging code for token', error);
-                logMessage(`Error during login: ${error.details || error.message}`);
-            }
-        } else {
-            authMessage.style.display = 'none';
-            authorizeButton.style.display = 'block';
-            logMessage('Ready. Please sign in.');
-        }
+        // Initialize the token client for pop-up flow
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: tokenCallback, // This function will handle the pop-up response
+        });
 
+        logMessage('Clients initialized. Ready to sign in.');
+        authMessage.style.display = 'none';
+        authorizeButton.style.display = 'block';
     } catch (error) {
         console.error('Initialization failed:', error);
         logMessage(`Error during initialization: ${error.message}`);
@@ -85,22 +47,53 @@ async function main() {
     }
 }
 
-// Start the application.
-main();
-
-// The rest of the functions are correct and remain the same.
-
-function handleGoogleLogin() {
-    const client = google.accounts.oauth2.initCodeClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        ux_mode: 'redirect',
-    });
-    client.requestCode();
+// Handles the response from the Google Sign-In pop-up.
+async function tokenCallback(tokenResponse) {
+    if (tokenResponse.error) {
+        logMessage(`Authentication Error: ${tokenResponse.error}`);
+        return;
+    }
+    // With the pop-up flow, gapi.client.setToken is handled automatically by the library.
+    await handleSuccessfulLogin();
 }
 
+authorizeButton.onclick = () => {
+    if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+        logMessage('Error: Token client not initialized.');
+    }
+};
+
+// Start the application after the main page and external scripts are loaded
+window.onload = async () => {
+    // Dynamically load the Google scripts
+    const loadScript = (src) => new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.defer = true;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    try {
+        await Promise.all([
+            loadScript('https://apis.google.com/js/api.js'),
+            loadScript('https://accounts.google.com/gsi/client')
+        ]);
+        initializeApp();
+    } catch (error) {
+        logMessage('Failed to load Google API scripts. Check your internet connection.');
+        console.error('Script loading error:', error);
+    }
+};
+
+
+// The rest of your functions (handleSuccessfulLogin, signOut, handleSync, logMessage, clearLog) are correct and remain the same.
+
 async function handleSuccessfulLogin() {
-    // This line will now work correctly because the token has been set.
     const accessToken = gapi.client.getToken().access_token;
     const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -134,10 +127,6 @@ function signOut() {
         });
     }
 }
-
-authorizeButton.onclick = handleGoogleLogin;
-signoutButton.onclick = signOut;
-syncButton.onclick = handleSync;
 
 async function handleSync() {
     syncButton.disabled = true;
