@@ -40,36 +40,41 @@ function loadScript(src) {
 async function main() {
     try {
         logMessage('Loading Google API scripts...');
-        // Load both Google scripts concurrently and wait for them to finish.
         await Promise.all([
             loadScript('https://apis.google.com/js/api.js'),
             loadScript('https://accounts.google.com/gsi/client')
         ]);
         logMessage('Scripts loaded. Initializing Google API client...');
 
-        // Wait for the GAPI client library to be ready.
         await new Promise((resolve) => gapi.load('client', resolve));
         
-        // Initialize the GAPI client.
         await gapi.client.init({
             apiKey: API_KEY,
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
         });
         logMessage('Google API client initialized.');
+        
+        // ** THIS IS THE CORRECTED LOGIC **
+        // Check the URL for an authorization code from Google.
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
 
-        // This handles the redirect flow back from Google.
-        google.accounts.oauth2.getAuthnData(async (authnData) => {
-            if (authnData.code) {
-                // If we have an authorization code, exchange it for an access token.
-                const tokenResponse = await gapi.client.getToken({ code: authnData.code });
+        if (code) {
+            // If a code is present, the user is returning from the login flow.
+            // Exchange the code for an access token.
+            try {
+                await gapi.client.getToken({ code: code });
                 handleSuccessfulLogin();
-            } else {
-                // If there's no code, the user has not signed in yet. Show the button.
-                authMessage.style.display = 'none';
-                authorizeButton.style.display = 'block';
-                logMessage('Ready. Please sign in.');
+            } catch (error) {
+                console.error('Error exchanging code for token', error);
+                logMessage(`Error during login: ${error.details || error.message}`);
             }
-        });
+        } else {
+            // If no code is present, it's a fresh visit. Show the sign-in button.
+            authMessage.style.display = 'none';
+            authorizeButton.style.display = 'block';
+            logMessage('Ready. Please sign in.');
+        }
 
     } catch (error) {
         console.error('Initialization failed:', error);
@@ -81,8 +86,8 @@ async function main() {
 // Start the application.
 main();
 
+// The rest of the functions are correct and remain the same.
 
-// The rest of the functions remain largely the same.
 function handleGoogleLogin() {
     const client = google.accounts.oauth2.initCodeClient({
         client_id: CLIENT_ID,
@@ -131,7 +136,6 @@ authorizeButton.onclick = handleGoogleLogin;
 signoutButton.onclick = signOut;
 syncButton.onclick = handleSync;
 
-// The handleSync function and log helpers remain the same
 async function handleSync() {
     syncButton.disabled = true;
     syncButton.classList.add('loading');
@@ -215,12 +219,14 @@ async function handleSync() {
         syncButton.innerHTML = '✨ Sync to Calendar';
     }
 }
+
 function logMessage(message) {
     if (logOutput) {
         logOutput.textContent += message + '\n';
         logOutput.scrollTop = logOutput.scrollHeight;
     }
 }
+
 function clearLog() {
     if (logOutput) {
         logOutput.textContent = '';
