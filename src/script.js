@@ -17,53 +17,72 @@ const syncButton = document.getElementById('sync_button');
 const jsonInput = document.getElementById('json_input');
 const logOutput = document.getElementById('log_output');
 
-let gapiInited = false;
-let gsiInited = false;
-
-window.gapiLoaded = () => gapi.load('client', () => gapiInited = true);
-window.gisLoaded = () => gsiInited = true;
-
 /**
- * Main entry point. Waits for both Google libraries to load.
+ * A helper function to dynamically load a script and return a promise.
+ * @param {string} src The URL of the script to load.
+ * @returns {Promise<void>}
  */
-window.onload = () => {
-    const checkGoogleLoaded = setInterval(() => {
-        if (gapiInited && gsiInited) {
-            clearInterval(checkGoogleLoaded);
-            initializeApp();
-        }
-    }, 100);
-};
-
-async function initializeApp() {
-    logMessage('Page loaded. Initializing Google API client...');
-    await gapi.client.init({
-        apiKey: API_KEY,
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-    });
-    logMessage('Google API client initialized.');
-
-    // This handles the redirect back from Google
-    google.accounts.oauth2.getAuthnData(async (authnData) => {
-        if (authnData.code) {
-            try {
-                // Exchange the authorization code for an access token
-                const tokenResponse = await gapi.client.getToken({ code: authnData.code });
-                handleSuccessfulLogin();
-            } catch (error) {
-                console.error('Error exchanging code for token', error);
-                logMessage(`Error during login: ${error.details || error.message}`);
-            }
-        } else {
-            // If there's no code, show the sign-in button
-            authMessage.style.display = 'none';
-            authorizeButton.style.display = 'block';
-            logMessage('Ready. Please sign in.');
-        }
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        document.head.appendChild(script);
     });
 }
 
-// NEW: This function initiates the redirect to Google
+/**
+ * Main function to initialize and run the application.
+ */
+async function main() {
+    try {
+        logMessage('Loading Google API scripts...');
+        // Load both Google scripts concurrently and wait for them to finish.
+        await Promise.all([
+            loadScript('https://apis.google.com/js/api.js'),
+            loadScript('https://accounts.google.com/gsi/client')
+        ]);
+        logMessage('Scripts loaded. Initializing Google API client...');
+
+        // Wait for the GAPI client library to be ready.
+        await new Promise((resolve) => gapi.load('client', resolve));
+        
+        // Initialize the GAPI client.
+        await gapi.client.init({
+            apiKey: API_KEY,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+        });
+        logMessage('Google API client initialized.');
+
+        // This handles the redirect flow back from Google.
+        google.accounts.oauth2.getAuthnData(async (authnData) => {
+            if (authnData.code) {
+                // If we have an authorization code, exchange it for an access token.
+                const tokenResponse = await gapi.client.getToken({ code: authnData.code });
+                handleSuccessfulLogin();
+            } else {
+                // If there's no code, the user has not signed in yet. Show the button.
+                authMessage.style.display = 'none';
+                authorizeButton.style.display = 'block';
+                logMessage('Ready. Please sign in.');
+            }
+        });
+
+    } catch (error) {
+        console.error('Initialization failed:', error);
+        logMessage(`Error during initialization: ${error.message}`);
+        authMessage.innerText = 'Initialization Failed. Check the console for errors.';
+    }
+}
+
+// Start the application.
+main();
+
+
+// The rest of the functions remain largely the same.
 function handleGoogleLogin() {
     const client = google.accounts.oauth2.initCodeClient({
         client_id: CLIENT_ID,
@@ -74,14 +93,12 @@ function handleGoogleLogin() {
 }
 
 async function handleSuccessfulLogin() {
-    // 1. Get user's profile information
     const accessToken = gapi.client.getToken().access_token;
     const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
     });
     const userInfo = await response.json();
 
-    // 2. Check if the user's email domain is allowed
     if (userInfo.email && userInfo.email.endsWith(ALLOWED_DOMAIN)) {
         logMessage(`Access granted for ${userInfo.email}.`);
         authMessage.style.display = 'none';
@@ -110,7 +127,6 @@ function signOut() {
     }
 }
 
-// Assign click handlers
 authorizeButton.onclick = handleGoogleLogin;
 signoutButton.onclick = signOut;
 syncButton.onclick = handleSync;
