@@ -157,7 +157,7 @@ async function handleSync() {
             if (!digiEvents) {
                  syncButton.disabled = false;
                  syncButton.classList.remove('loading');
-                 syncButton.innerHTML = '✨ Sync to Calendar';
+                 syncButton.innerHTML = ' Sync to Calendar';
             }
         }
         logMessage('Fetching existing events from Google Calendar...');
