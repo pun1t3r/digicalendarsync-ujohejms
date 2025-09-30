@@ -54,23 +54,23 @@ async function main() {
         });
         logMessage('Google API client initialized.');
         
-        // ** THIS IS THE CORRECTED LOGIC **
-        // Check the URL for an authorization code from Google.
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
 
         if (code) {
-            // If a code is present, the user is returning from the login flow.
-            // Exchange the code for an access token.
             try {
-                await gapi.client.getToken({ code: code });
+                // ** THIS SECTION IS NOW FIXED **
+                // 1. Exchange the code for a token object.
+                const tokenResponse = await gapi.client.getToken({ code: code });
+                // 2. Set the token for the GAPI client to use. THIS LINE WAS MISSING.
+                gapi.client.setToken(tokenResponse);
+                // 3. Now proceed to the next step.
                 handleSuccessfulLogin();
             } catch (error) {
                 console.error('Error exchanging code for token', error);
                 logMessage(`Error during login: ${error.details || error.message}`);
             }
         } else {
-            // If no code is present, it's a fresh visit. Show the sign-in button.
             authMessage.style.display = 'none';
             authorizeButton.style.display = 'block';
             logMessage('Ready. Please sign in.');
@@ -98,6 +98,7 @@ function handleGoogleLogin() {
 }
 
 async function handleSuccessfulLogin() {
+    // This line will now work correctly because the token has been set.
     const accessToken = gapi.client.getToken().access_token;
     const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { 'Authorization': `Bearer ${accessToken}` }
