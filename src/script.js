@@ -148,9 +148,9 @@ async function handleSync() {
         try {
             digiEvents = JSON.parse(jsonInput.value);
             if (!Array.isArray(digiEvents)) throw new Error('Input is not a JSON array.');
-            logMessage(`✅ Loaded ${digiEvents.length} events from input.`);
+            logMessage(`Loaded ${digiEvents.length} events from input.`);
         } catch (err) {
-            logMessage(`❌ Error: Invalid JSON. Please check your data. Details: ${err.message}`);
+            logMessage(`Error: Invalid JSON. Please check your data. Details: ${err.message}`);
             return; // Exit here if JSON is invalid
         } finally {
             // Re-enable the button if JSON parsing fails
@@ -217,14 +217,14 @@ async function handleSync() {
                 await gapi.client.calendar.events.delete({ calendarId: 'primary', eventId: googleEvent.id });
             }
         }
-        logMessage('\n✅ Sync complete! Check your Google Calendar.');
+        logMessage('\n Sync complete! Check your Google Calendar.');
     } catch (err) {
-        logMessage(`❌ An error occurred during sync: ${err.message}`);
+        logMessage(` An error occurred during sync: ${err.message}`);
         console.error(err);
     } finally {
         syncButton.disabled = false;
         syncButton.classList.remove('loading');
-        syncButton.innerHTML = '✨ Sync to Calendar';
+        syncButton.innerHTML = ' Sync to Calendar';
     }
 }
 
