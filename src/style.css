@@ -72,6 +72,21 @@ button:disabled {
   transform: translateY(-1px);
 }
 
+#post_auth_buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px; /* Adds space between the buttons */
+}
+
+#clear_button {
+    background-color: #ef4444; /* A red color for a delete action */
+    color: white;
+}
+
+#clear_button:hover {
+    background-color: #dc2626; /* A darker red on hover */
+}
+
 #signout_button {
   background-color: #f1f5f9;
   color: #475569;
@@ -87,6 +102,7 @@ button:disabled {
   text-align: center;
   margin-bottom: 25px;
 }
+
 .hidden {
   display: none !important;
 }
@@ -163,6 +179,12 @@ textarea:focus {
   margin-left: 10px;
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* --- Footer Styles --- */
 footer {
     text-align: center;
@@ -192,10 +214,4 @@ footer p {
 .social-links a:hover {
     color: #3b82f6; /* Blue hover color */
     transform: scale(1.2);
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
