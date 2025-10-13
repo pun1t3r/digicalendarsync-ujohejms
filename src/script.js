@@ -7,6 +7,7 @@ const ALLOWED_DOMAIN = 'greatlakes.edu.in';
 const CALENDAR_ID = 'primary';
 const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
 
+// Get references to all HTML elements
 const authMessage = document.getElementById('auth_message');
 const authorizeButton = document.getElementById('authorize_button');
 const signoutButton = document.getElementById('signout_button');
@@ -14,6 +15,8 @@ const syncSection = document.getElementById('sync_section');
 const syncButton = document.getElementById('sync_button');
 const jsonInput = document.getElementById('json_input');
 const logOutput = document.getElementById('log_output');
+const postAuthButtons = document.getElementById('post_auth_buttons');
+const clearButton = document.getElementById('clear_button');
 
 let tokenClient;
 
@@ -23,18 +26,16 @@ let tokenClient;
 async function initializeApp() {
     logMessage('Loading and initializing Google clients...');
     try {
-        // Load the libraries
         await new Promise(resolve => gapi.load('client', resolve));
         await gapi.client.init({
             apiKey: API_KEY,
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
         });
 
-        // Initialize the token client for pop-up flow
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
             scope: SCOPES,
-            callback: tokenCallback, // This function will handle the pop-up response
+            callback: tokenCallback,
         });
 
         logMessage('Clients initialized. Ready to sign in.');
@@ -47,13 +48,11 @@ async function initializeApp() {
     }
 }
 
-// Handles the response from the Google Sign-In pop-up.
 async function tokenCallback(tokenResponse) {
     if (tokenResponse.error) {
         logMessage(`Authentication Error: ${tokenResponse.error}`);
         return;
     }
-    // With the pop-up flow, gapi.client.setToken is handled automatically by the library.
     await handleSuccessfulLogin();
 }
 
@@ -65,18 +64,15 @@ authorizeButton.onclick = () => {
     }
 };
 
-// ** ADDED THE MISSING EVENT HANDLERS FOR THE OTHER BUTTONS **
+// Assign click handlers for all buttons
 signoutButton.onclick = signOut;
-
+clearButton.onclick = handleClearAllEvents;
 syncButton.onclick = () => {
-    console.log('Sync button was clicked!'); // Debugging line
+    console.log('Sync button was clicked!');
     handleSync();
 };
 
-
-// Start the application after the main page and external scripts are loaded
 window.onload = async () => {
-    // Dynamically load the Google scripts
     const loadScript = (src) => new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = src;
@@ -99,9 +95,6 @@ window.onload = async () => {
     }
 };
 
-
-// The rest of your functions (handleSuccessfulLogin, signOut, handleSync, logMessage, clearLog) are correct and remain the same.
-
 async function handleSuccessfulLogin() {
     const accessToken = gapi.client.getToken().access_token;
     const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -113,7 +106,7 @@ async function handleSuccessfulLogin() {
         logMessage(`Access granted for ${userInfo.email}.`);
         authMessage.style.display = 'none';
         authorizeButton.style.display = 'none';
-        signoutButton.style.display = 'block';
+        postAuthButtons.classList.remove('hidden'); // Show the container for signout/clear buttons
         syncSection.classList.remove('hidden');
     } else {
         logMessage(`Access denied. User ${userInfo.email} is not from an allowed domain.`);
@@ -129,7 +122,7 @@ function signOut() {
         google.accounts.oauth2.revoke(token.access_token, () => {
             gapi.client.setToken(null);
             authorizeButton.style.display = 'block';
-            signoutButton.style.display = 'none';
+            postAuthButtons.classList.add('hidden'); // Hide the container
             syncSection.classList.add('hidden');
             authMessage.style.display = 'none';
             logMessage('Signed out. Please sign in to sync.');
@@ -137,8 +130,55 @@ function signOut() {
     }
 }
 
+// ** NEW FUNCTION TO CLEAR ALL SYNCED EVENTS **
+async function handleClearAllEvents() {
+    if (!confirm("Are you sure you want to delete ALL synced Digicampus events from your Google Calendar? This cannot be undone.")) {
+        return;
+    }
+
+    clearButton.disabled = true;
+    syncButton.disabled = true;
+    clearLog();
+    logMessage('Starting deletion process...');
+
+    try {
+        logMessage('Fetching all synced events from your calendar...');
+        const response = await gapi.client.calendar.events.list({
+            calendarId: 'primary',
+            privateExtendedProperty: 'source=digi-sync',
+            maxResults: 2500,
+        });
+
+        const eventsToDelete = response.result.items;
+        if (!eventsToDelete || eventsToDelete.length === 0) {
+            logMessage('No synced events found to delete.');
+            return;
+        }
+        
+        logMessage(`Found ${eventsToDelete.length} events. Deleting now...`);
+
+        for (const event of eventsToDelete) {
+            await gapi.client.calendar.events.delete({
+                calendarId: 'primary',
+                eventId: event.id,
+            });
+        }
+
+        logMessage(`\n  Successfully deleted ${eventsToDelete.length} events.`);
+
+    } catch (err) {
+        logMessage(` An error occurred during deletion: ${err.message}`);
+        console.error(err);
+    } finally {
+        clearButton.disabled = false;
+        syncButton.disabled = false;
+    }
+}
+
+
 async function handleSync() {
     syncButton.disabled = true;
+    clearButton.disabled = true;
     syncButton.classList.add('loading');
     syncButton.innerHTML = 'Syncing...';
     clearLog();
@@ -148,18 +188,12 @@ async function handleSync() {
         try {
             digiEvents = JSON.parse(jsonInput.value);
             if (!Array.isArray(digiEvents)) throw new Error('Input is not a JSON array.');
-            logMessage(`Loaded ${digiEvents.length} events from input.`);
+            logMessage(`  Loaded ${digiEvents.length} events from input.`);
         } catch (err) {
-            logMessage(`Error: Invalid JSON. Please check your data. Details: ${err.message}`);
-            return; // Exit here if JSON is invalid
-        } finally {
-            // Re-enable the button if JSON parsing fails
-            if (!digiEvents) {
-                 syncButton.disabled = false;
-                 syncButton.classList.remove('loading');
-                 syncButton.innerHTML = ' Sync to Calendar';
-            }
+            logMessage(` Error: Invalid JSON. Please check your data. Details: ${err.message}`);
+            return;
         }
+        
         logMessage('Fetching existing events from Google Calendar...');
         const response = await gapi.client.calendar.events.list({
             calendarId: 'primary',
@@ -167,7 +201,7 @@ async function handleSync() {
             maxResults: 2500,
         });
         const googleEvents = response.result.items;
-        const googleEventsMap = new Map(googleEvents.map(e => [e.extendedProperties.private.digi_id, e]));
+        const googleEventsMap = new Map(googleEvents ? googleEvents.map(e => [e.extendedProperties.private.digi_id, e]) : []);
         logMessage(`Found ${googleEventsMap.size} existing Digicampus events in your calendar.`);
         const currentDigiIds = new Set();
         for (const event of digiEvents) {
@@ -175,7 +209,6 @@ async function handleSync() {
             currentDigiIds.add(digiId);
             const existingEvent = googleEventsMap.get(digiId);
             if (event.isCancelled && existingEvent) {
-                logMessage(`- [DELETE] Event "${existingEvent.summary}" (${digiId}) is cancelled.`);
                 await gapi.client.calendar.events.delete({ calendarId: 'primary', eventId: existingEvent.id });
                 continue;
             }
@@ -196,7 +229,6 @@ async function handleSync() {
             };
             if (existingEvent) {
                 if (event.lastModified > existingEvent.extendedProperties.private.lastModified) {
-                    logMessage(`- [UPDATE] Event "${eventBody.summary}" (${digiId}) has changed.`);
                     await gapi.client.calendar.events.update({
                         calendarId: 'primary',
                         eventId: existingEvent.id,
@@ -204,7 +236,6 @@ async function handleSync() {
                     });
                 }
             } else {
-                logMessage(`- [CREATE] New event "${eventBody.summary}" (${digiId}).`);
                 await gapi.client.calendar.events.insert({
                     calendarId: 'primary',
                     resource: eventBody,
@@ -213,7 +244,6 @@ async function handleSync() {
         }
         for (const [digiId, googleEvent] of googleEventsMap.entries()) {
             if (!currentDigiIds.has(digiId)) {
-                logMessage(`- [CLEANUP] Deleting outdated event "${googleEvent.summary}" (${digiId}).`);
                 await gapi.client.calendar.events.delete({ calendarId: 'primary', eventId: googleEvent.id });
             }
         }
@@ -223,8 +253,9 @@ async function handleSync() {
         console.error(err);
     } finally {
         syncButton.disabled = false;
+        clearButton.disabled = false;
         syncButton.classList.remove('loading');
-        syncButton.innerHTML = ' Sync to Calendar';
+        syncButton.innerHTML = '✨ Sync to Calendar';
     }
 }
 
